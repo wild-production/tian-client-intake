@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台管理 — WILD</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --paper:#efe8da; --ink:#221d17; --ink-soft:#5c5346; --line:#cabb9e;
+    --moss:#3c5c49; --sienna:#bd5a34; --white:#fbf9f3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+  header h1{font-size:18px;margin:0;}
+  main{padding:24px;max-width:1400px;margin:0 auto;}
+  #loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;}
+  #loginScreen p{color:var(--ink-soft);}
+  #adminScreen{display:none;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  select, button{font-family:inherit;font-size:14px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink);}
+  button{cursor:pointer;background:var(--moss);color:var(--white);border:none;}
+  button:hover{opacity:.9;}
+  .count{color:var(--ink-soft);font-size:13px;}
+  table{width:100%;border-collapse:collapse;background:var(--white);border-radius:10px;overflow:hidden;font-size:13px;}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
+  th{background:var(--paper);position:sticky;top:0;}
+  tr:hover{background:#f6f1e5;}
+  .tag-select{min-width:110px;}
+  .cell-wide{max-width:260px;white-space:pre-wrap;word-break:break-word;}
+  .muted{color:var(--ink-soft);}
+  a{color:var(--sienna);}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;}
+  .empty-state{padding:40px;text-align:center;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>後台管理 — 名單總覽</h1>
+  <div id="userBadge" class="muted"></div>
+</header>
+
+<main>
+  <div id="loginScreen">
+    <p>請用授權的 Google 帳號登入</p>
+    <div id="googleBtn"></div>
+    <p id="loginError" style="color:#a6412b;display:none;">登入驗證失敗，請確認帳號是否正確，或聯繫管理者。</p>
+  </div>
+
+  <div id="adminScreen">
+    <div class="toolbar">
+      <label>標籤篩選：
+        <select id="filterTag"></select>
+      </label>
+      <span class="count" id="rowCount"></span>
+      <button onclick="loadData()">重新整理</button>
+    </div>
+    <div class="table-wrap">
+      <table id="dataTable">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty-state" style="display:none;">目前還沒有任何名單</div>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   設定區 — 部署完 Apps Script、建好 Google OAuth 用戶端後填這裡
+   詳見「後台建置說明.md」
+   ============================================================ */
+const CONFIG = {
+  backendUrl: 'https://script.google.com/macros/s/AKfycbwPpbvR252aFoIHCe-PEp3sRmtZUchdjC0aZKNOjTRYmoB9vsSCEUDFyNloA5BPKs9x/exec',
+  googleClientId: '390238587356-dasatp04of2klsc6pfbff5ot33i0q27g.apps.googleusercontent.com',
+};
+
+// 表格要顯示哪些欄位、順序（對應 Code.gs 的 HEADERS）
+const DISPLAY_COLUMNS = [
+  '時間戳記', '標籤狀態', '姓名', '品牌店名', 'Instagram',
+  '已選服務', '預估總計', '最大困擾', '最想解決的問題',
+  '偏好聯繫方式', '是否已透過頁面約時間', '補充說明原文', '情報摘要',
+];
+
+let idToken = null;
+let allRows = [];
+let tagOptions = ['新名單', '已聯繫', '已預約', '已付訂金', '已完成', '不follow up'];
+
+window.onload = function () {
+  if (!CONFIG.googleClientId) {
+    document.getElementById('loginScreen').innerHTML =
+      '<p style="color:#a6412b;max-width:420px;text-align:center;">尚未設定 googleClientId，後台還不能用。請照「後台建置說明.md」完成設定。</p>';
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: CONFIG.googleClientId,
+    callback: handleCredentialResponse,
+  });
+  google.accounts.id.renderButton(document.getElementById('googleBtn'), {
+    theme: 'outline', size: 'large', text: 'signin_with',
+  });
+};
+
+function handleCredentialResponse(response) {
+  idToken = response.credential;
+  loadData();
+}
+
+async function loadData() {
+  if (!CONFIG.backendUrl) {
+    alert('尚未設定 backendUrl，請照「後台建置說明.md」完成設定。');
+    return;
+  }
+  try {
+    const res = await fetch(CONFIG.backendUrl + '?action=list&idToken=' + encodeURIComponent(idToken));
+    const data = await res.json();
+    if (!data.ok) {
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminScreen').style.display = 'block';
+    allRows = data.rows || [];
+    if (data.tagOptions && data.tagOptions.length) tagOptions = data.tagOptions;
+    setupFilter();
+    renderTable();
+  } catch (e) {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function setupFilter() {
+  const sel = document.getElementById('filterTag');
+  sel.innerHTML = '<option value="全部">全部標籤</option>' +
+    tagOptions.map(function (t) { return `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`; }).join('');
+  sel.onchange = renderTable;
+}
+
+function renderTable() {
+  const filter = document.getElementById('filterTag').value;
+  const rows = (!filter || filter === '全部') ? allRows : allRows.filter(function (r) { return r['標籤狀態'] === filter; });
+
+  document.getElementById('rowCount').textContent = `共 ${rows.length} 筆（總計 ${allRows.length} 筆）`;
+  document.getElementById('emptyState').style.display = rows.length ? 'none' : 'block';
+  document.getElementById('dataTable').style.display = rows.length ? 'table' : 'none';
+
+  const thead = document.querySelector('#dataTable thead');
+  thead.innerHTML = '<tr>' + DISPLAY_COLUMNS.map(function (c) { return `<th>${escapeHtml(c)}</th>`; }).join('') + '</tr>';
+
+  const tbody = document.querySelector('#dataTable tbody');
+  tbody.innerHTML = rows.map(function (r) {
+    return '<tr>' + DISPLAY_COLUMNS.map(function (c) {
+      if (c === '標籤狀態') {
+        return `<td><select class="tag-select" onchange="updateTag('${escapeAttr(r.ID)}', this.value)">` +
+          tagOptions.map(function (t) {
+            return `<option value="${escapeHtml(t)}" ${t === r[c] ? 'selected' : ''}>${escapeHtml(t)}</option>`;
+          }).join('') + '</select></td>';
+      }
+      let val = r[c] == null ? '' : String(r[c]);
+      if (c === '時間戳記' && val) {
+        try { val = new Date(val).toLocaleString('zh-TW'); } catch (e) {}
+      }
+      const wide = ['已選服務', '最大困擾', '最想解決的問題', '補充說明原文', '情報摘要'].indexOf(c) !== -1;
+      return `<td${wide ? ' class="cell-wide"' : ''}>${escapeHtml(val) || '<span class="muted">—</span>'}</td>`;
+    }).join('') + '</tr>';
+  }).join('');
+}
+
+async function updateTag(id, value) {
+  try {
+    await fetch(CONFIG.backendUrl + '?action=updateTag&idToken=' + encodeURIComponent(idToken) +
+      '&id=' + encodeURIComponent(id) + '&value=' + encodeURIComponent(value));
+    const row = allRows.find(function (r) { return r.ID === id; });
+    if (row) row['標籤狀態'] = value;
+  } catch (e) {
+    alert('更新標籤失敗，請重新整理再試一次。');
+  }
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, function (m) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+  });
+}
+function escapeAttr(str) { return String(str ?? '').replace(/'/g, "\\'"); }
+</script>
+</body>
+</html>
