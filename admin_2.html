@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台管理 — WILD</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --paper:#efe8da; --ink:#221d17; --ink-soft:#5c5346; --line:#cabb9e;
+    --moss:#3c5c49; --sienna:#bd5a34; --white:#fbf9f3;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;}
+  header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
+  header h1{font-size:18px;margin:0;}
+  .header-right{display:flex;align-items:center;gap:12px;}
+  main{padding:24px;max-width:1400px;margin:0 auto;}
+  #loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;}
+  #loginScreen p{color:var(--ink-soft);}
+  #adminScreen{display:none;}
+  #detailView{display:none;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+  select, button{font-family:inherit;font-size:14px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink);}
+  button{cursor:pointer;background:var(--moss);color:var(--white);border:none;}
+  button:hover{opacity:.9;}
+  button.secondary{background:var(--white);color:var(--ink);border:1px solid var(--line);}
+  .count{color:var(--ink-soft);font-size:13px;}
+  table{width:100%;border-collapse:collapse;background:var(--white);border-radius:10px;overflow:hidden;font-size:13px;}
+  th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
+  th{background:var(--paper);position:sticky;top:0;user-select:none;white-space:nowrap;cursor:pointer;}
+  th:hover{background:#e6dcc4;}
+  th.no-sort{cursor:default;}
+  th.no-sort:hover{background:var(--paper);}
+  th .arrow{color:var(--sienna);margin-left:2px;}
+  tr:hover{background:#f6f1e5;}
+  .tag-select{min-width:110px;}
+  .cell-wide{max-width:220px;white-space:pre-wrap;word-break:break-word;}
+  .muted{color:var(--ink-soft);}
+  a{color:var(--sienna);}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;}
+  .empty-state{padding:40px;text-align:center;color:var(--ink-soft);}
+  .services-list{margin:0;padding:0;list-style:none;}
+  .services-list li{padding:1px 0;}
+  .link-btn{display:inline-block;margin:0 6px 6px 0;padding:6px 10px;border-radius:8px;background:var(--white);border:1px solid var(--line);font-size:12.5px;text-decoration:none;color:var(--ink);}
+  .link-btn:hover{background:#f6f1e5;}
+
+  /* 詳情頁（獨立版面，取代表格列表，不是彈出視窗） */
+  .detail-card{background:var(--white);border-radius:14px;max-width:760px;margin:0 auto;padding:28px 32px;}
+  .detail-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .detail-card h2{margin:0 0 4px;font-size:22px;}
+  .danger-btn{background:#a6412b;}
+  .section{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
+
+  /* 跟進紀錄時間軸 */
+  .note-item{background:var(--paper);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+  .note-item .note-meta{font-size:12px;color:var(--ink-soft);display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .note-tag{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--white);border:1px solid var(--line);font-size:11.5px;}
+  .note-summary{margin-top:4px;font-size:13.5px;white-space:pre-wrap;}
+  .note-doc-link{font-size:12.5px;margin-top:4px;display:inline-block;}
+  .note-form{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
+  .note-form textarea{font-family:inherit;font-size:13.5px;padding:8px;border-radius:8px;border:1px solid var(--line);resize:vertical;min-height:60px;}
+  .note-form-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+  .section:first-of-type{margin-top:14px;}
+  .section h3{margin:0 0 8px;font-size:13px;color:var(--sienna);letter-spacing:.02em;}
+  .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13.5px;}
+  .kv dt{color:var(--ink-soft);}
+  .kv dd{margin:0;}
+  .summary-box{background:var(--paper);border-radius:10px;padding:12px;font-size:13.5px;white-space:pre-wrap;line-height:1.6;}
+  .rule-note{font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>後台管理 — 名單總覽</h1>
+  <div class="header-right">
+    <div id="userBadge" class="muted"></div>
+    <button id="logoutBtn" class="secondary" style="display:none;" onclick="logout()">登出</button>
+  </div>
+</header>
+
+<main>
+  <div id="loginScreen">
+    <p>請用授權的 Google 帳號登入</p>
+    <div id="googleBtn"></div>
+    <p id="loginError" style="color:#a6412b;display:none;">登入驗證失敗，請確認帳號是否正確，或聯繫管理者。</p>
+  </div>
+
+  <div id="adminScreen">
+    <div id="listView">
+      <div class="toolbar">
+        <label>標籤篩選：
+          <select id="filterTag"></select>
+        </label>
+        <span class="count" id="rowCount"></span>
+        <button onclick="loadData()">重新整理</button>
+        <button class="secondary" onclick="clearSort()">清除排序</button>
+      </div>
+      <div class="table-wrap">
+        <table id="dataTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="emptyState" class="empty-state" style="display:none;">目前還沒有任何名單</div>
+    </div>
+
+    <div id="detailView"></div>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   設定區 — 部署完 Apps Script、建好 Google OAuth 用戶端後填這裡
+   詳見「後台建置說明.md」
+   ============================================================ */
+const CONFIG = {
+  backendUrl: 'https://script.google.com/macros/s/AKfycbwPpbvR252aFoIHCe-PEp3sRmtZUchdjC0aZKNOjTRYmoB9vsSCEUDFyNloA5BPKs9x/exec',
+  googleClientId: '390238587356-dasatp04of2klsc6pfbff5ot33i0q27g.apps.googleusercontent.com',
+};
+
+// 表格要顯示哪些欄位、順序（對應 Code.gs 的 HEADERS）—— 主表格只放最常需要一眼看到的欄位，
+// 其餘欄位（困擾、需求、補充說明、系統判讀等）收進「詳情」彈窗，避免主表格太雜亂。
+const DISPLAY_COLUMNS = [
+  '時間戳記', '標籤狀態', '姓名', '品牌店名', 'Instagram',
+  '已選服務', '預估總計', '是否已透過頁面約時間', '情報摘要',
+];
+
+// 數值型／日期型欄位在排序時要用「值」比較，不是純文字比較
+const NUMERIC_COLUMNS = ['預估小計', '預估總計'];
+const DATE_COLUMNS = ['時間戳記'];
+
+let idToken = null;
+let allRows = [];
+let tagOptions = ['新名單', '已聯繫', '已預約', '已付訂金', '已完成', '不follow up'];
+let sortState = { col: null, dir: 1 };
+
+window.onload = function () {
+  if (!CONFIG.googleClientId) {
+    document.getElementById('loginScreen').innerHTML =
+      '<p style="color:#a6412b;max-width:420px;text-align:center;">尚未設定 googleClientId，後台還不能用。請照「後台建置說明.md」完成設定。</p>';
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: CONFIG.googleClientId,
+    callback: handleCredentialResponse,
+  });
+  google.accounts.id.renderButton(document.getElementById('googleBtn'), {
+    theme: 'outline', size: 'large', text: 'signin_with',
+  });
+};
+
+function handleCredentialResponse(response) {
+  idToken = response.credential;
+  loadData();
+}
+
+function logout() {
+  idToken = null;
+  allRows = [];
+  sortState = { col: null, dir: 1 };
+  document.getElementById('adminScreen').style.display = 'none';
+  document.getElementById('logoutBtn').style.display = 'none';
+  document.getElementById('userBadge').textContent = '';
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('loginError').style.display = 'none';
+  if (window.google && google.accounts && google.accounts.id) {
+    google.accounts.id.disableAutoSelect();
+  }
+}
+
+async function loadData() {
+  if (!CONFIG.backendUrl) {
+    alert('尚未設定 backendUrl，請照「後台建置說明.md」完成設定。');
+    return;
+  }
+  try {
+    const res = await fetch(CONFIG.backendUrl + '?action=list&idToken=' + encodeURIComponent(idToken));
+    const data = await res.json();
+    if (!data.ok) {
+      document.getElementById('loginError').style.display = 'block';
+      return;
+    }
+    document.getElementById('loginError').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('adminScreen').style.display = 'block';
+    document.getElementById('logoutBtn').style.display = 'inline-block';
+    document.getElementById('userBadge').textContent = decodeJwtEmail(idToken) || '';
+    allRows = data.rows || [];
+    if (data.tagOptions && data.tagOptions.length) tagOptions = data.tagOptions;
+    setupFilter();
+    renderTable();
+  } catch (e) {
+    document.getElementById('loginError').style.display = 'block';
+  }
+}
+
+function setupFilter() {
+  const sel = document.getElementById('filterTag');
+  sel.innerHTML = '<option value="全部">全部標籤</option>' +
+    tagOptions.map(function (t) { return `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`; }).join('');
+  sel.onchange = renderTable;
+}
+
+// ---------- 排序 ----------
+
+function parseNumeric(val) {
+  const n = parseFloat(String(val ?? '').replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? -Infinity : n;
+}
+function parseDateVal(val) {
+  const t = new Date(val).getTime();
+  return isNaN(t) ? 0 : t;
+}
+
+function sortRows(rows) {
+  if (!sortState.col) return rows;
+  const col = sortState.col, dir = sortState.dir;
+  const copy = rows.slice();
+  copy.sort(function (a, b) {
+    let av = a[col], bv = b[col];
+    if (NUMERIC_COLUMNS.indexOf(col) !== -1) { av = parseNumeric(av); bv = parseNumeric(bv); }
+    else if (DATE_COLUMNS.indexOf(col) !== -1) { av = parseDateVal(av); bv = parseDateVal(bv); }
+    else { av = String(av ?? ''); bv = String(bv ?? ''); }
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+  return copy;
+}
+
+function onHeaderClick(col) {
+  if (sortState.col === col) { sortState.dir *= -1; }
+  else { sortState.col = col; sortState.dir = 1; }
+  renderTable();
+}
+
+function clearSort() {
+  sortState = { col: null, dir: 1 };
+  renderTable();
+}
+
+// ---------- 表格渲染 ----------
+
+function renderTable() {
+  const filter = document.getElementById('filterTag').value;
+  let rows = (!filter || filter === '全部') ? allRows : allRows.filter(function (r) { return r['標籤狀態'] === filter; });
+  rows = sortRows(rows);
+
+  document.getElementById('rowCount').textContent = `共 ${rows.length} 筆（總計 ${allRows.length} 筆）`;
+  document.getElementById('emptyState').style.display = rows.length ? 'none' : 'block';
+  document.getElementById('dataTable').style.display = rows.length ? 'table' : 'none';
+
+  const thead = document.querySelector('#dataTable thead');
+  thead.innerHTML = '<tr>' + DISPLAY_COLUMNS.map(function (c) {
+    let arrow = '';
+    if (sortState.col === c) arrow = `<span class="arrow">${sortState.dir === 1 ? '▲' : '▼'}</span>`;
+    return `<th onclick="onHeaderClick('${escapeAttr(c)}')">${escapeHtml(c)}${arrow}</th>`;
+  }).join('') + '<th class="no-sort">詳情</th></tr>';
+
+  const tbody = document.querySelector('#dataTable tbody');
+  tbody.innerHTML = rows.map(function (r) {
+    return '<tr>' + DISPLAY_COLUMNS.map(function (c) {
+      if (c === '標籤狀態') {
+        return `<td><select class="tag-select" onchange="updateTag('${escapeAttr(r.ID)}', this.value)">` +
+          tagOptions.map(function (t) {
+            return `<option value="${escapeHtml(t)}" ${t === r[c] ? 'selected' : ''}>${escapeHtml(t)}</option>`;
+          }).join('') + '</select></td>';
+      }
+      if (c === '已選服務') {
+        return `<td class="cell-wide">${renderServicesList(r[c])}</td>`;
+      }
+      if (c === '情報摘要') {
+        const val = r[c] == null ? '' : String(r[c]);
+        const preview = val ? (val.length > 36 ? escapeHtml(val.slice(0, 36)) + '…' : escapeHtml(val)) : '<span class="muted">尚未產生</span>';
+        return `<td class="cell-wide">${preview}</td>`;
+      }
+      let val = r[c] == null ? '' : String(r[c]);
+      if (c === '時間戳記' && val) {
+        try { val = new Date(val).toLocaleString('zh-TW'); } catch (e) {}
+      }
+      return `<td>${escapeHtml(val) || '<span class="muted">—</span>'}</td>`;
+    }).join('') + `<td><button class="secondary" onclick="openDetail('${escapeAttr(r.ID)}')">查看</button></td>` + '</tr>';
+  }).join('');
+}
+
+function renderServicesList(raw) {
+  const items = String(raw || '').split(' / ').map(function (s) { return s.trim(); }).filter(Boolean);
+  if (!items.length) return '<span class="muted">—</span>';
+  return '<ul class="services-list">' + items.map(function (it) { return `<li>・${escapeHtml(it)}</li>`; }).join('') + '</ul>';
+}
+
+async function updateTag(id, value) {
+  try {
+    await fetch(CONFIG.backendUrl + '?action=updateTag&idToken=' + encodeURIComponent(idToken) +
+      '&id=' + encodeURIComponent(id) + '&value=' + encodeURIComponent(value));
+    const row = allRows.find(function (r) { return r.ID === id; });
+    if (row) row['標籤狀態'] = value;
+  } catch (e) {
+    alert('更新標籤失敗，請重新整理再試一次。');
+  }
+}
+
+// ---------- 詳情彈窗 ----------
+
+function igProfileUrl(igRaw) {
+  if (!igRaw) return null;
+  let handle = String(igRaw).trim();
+  // 支援使用者填完整網址或只填 @帳號 兩種情況
+  const m = handle.match(/instagram\.com\/([^/?#]+)/i);
+  if (m) handle = m[1];
+  handle = handle.replace(/^@/, '');
+  if (!handle) return null;
+  return 'https://www.instagram.com/' + encodeURIComponent(handle) + '/';
+}
+
+function brandSearchUrl(brand) {
+  if (!brand) return null;
+  return 'https://www.google.com/search?q=' + encodeURIComponent(brand + ' instagram');
+}
+
+let currentDetailId = null;
+
+function openDetail(id) {
+  const r = allRows.find(function (r) { return r.ID === id; });
+  if (!r) return;
+  currentDetailId = id;
+
+  const igLink = igProfileUrl(r['Instagram']);
+  const brandLink = brandSearchUrl(r['品牌店名']);
+  // 情報摘要要能連結查證：優先給 Instagram 帳號本身連結（最準確），
+  // 品牌店名搜尋連結作為交叉比對用（Instagram 帳號優先）
+  let linksHtml = '';
+  if (igLink) linksHtml += `<a class="link-btn" href="${escapeAttr(igLink)}" target="_blank" rel="noopener">🔗 開啟 Instagram 個人頁</a>`;
+  if (brandLink) linksHtml += `<a class="link-btn" href="${escapeAttr(brandLink)}" target="_blank" rel="noopener">🔎 用品牌店名搜尋（交叉比對）</a>`;
+  if (!linksHtml) linksHtml = '<span class="muted">沒有留下 Instagram 或品牌店名，無法產生查證連結</span>';
+
+  const summary = r['情報摘要'] ? escapeHtml(String(r['情報摘要'])) : '尚未產生摘要 —— 排程任務會定期處理還沒摘要的名單，處理後會自動出現在這裡。';
+
+  let timeStr = r['時間戳記'] || '';
+  try { timeStr = new Date(timeStr).toLocaleString('zh-TW'); } catch (e) {}
+
+  const html = `
+    <div class="detail-card">
+      <div class="detail-topbar">
+        <button class="secondary" onclick="closeDetail()">← 返回列表</button>
+        <button class="danger-btn" onclick="deleteRow('${escapeAttr(r.ID)}')">刪除這筆名單</button>
+      </div>
+      <h2>${escapeHtml(r['姓名'] || '（未填姓名）')}</h2>
+      <div class="muted">${escapeHtml(r['品牌店名'] || '')} · 送出時間：${escapeHtml(timeStr)}</div>
+
+      <div class="section">
+        <h3>客戶資訊</h3>
+        <dl class="kv">
+          <dt>Instagram</dt><dd>${escapeHtml(r['Instagram'] || '—')}</dd>
+          <dt>Email</dt><dd>${escapeHtml(r['Email'] || '—')}</dd>
+          <dt>聯繫方式</dt><dd>${escapeHtml(r['偏好聯繫方式'] || '—')}</dd>
+          <dt>方便時段</dt><dd>${escapeHtml(r['方便時段'] || '—')}</dd>
+          <dt>粉絲數</dt><dd>${escapeHtml(r['粉絲數'] || '—')}</dd>
+          <dt>發文頻率</dt><dd>${escapeHtml(r['發文頻率'] || '—')}</dd>
+          <dt>已約時間</dt><dd>${escapeHtml(r['是否已透過頁面約時間'] || '—')}</dd>
+        </dl>
+      </div>
+
+      <div class="section">
+        <h3>已選服務明細</h3>
+        ${renderServicesList(r['已選服務'])}
+        <dl class="kv" style="margin-top:10px;">
+          <dt>預估小計</dt><dd>${escapeHtml(r['預估小計'] || '—')}</dd>
+          <dt>多項折抵</dt><dd>${escapeHtml(r['多項優惠折抵'] || '—')}</dd>
+          <dt>預估總計</dt><dd><b>${escapeHtml(r['預估總計'] || '—')}</b></dd>
+        </dl>
+      </div>
+
+      <div class="section">
+        <h3>困擾與需求</h3>
+        <dl class="kv">
+          <dt>最大困擾</dt><dd>${escapeHtml(r['最大困擾'] || '—')}</dd>
+          <dt>最想解決</dt><dd>${escapeHtml(r['最想解決的問題'] || '—')}</dd>
+          <dt>預算範圍</dt><dd>${escapeHtml(r['預算範圍'] || '—')}</dd>
+          <dt>半年後擔心</dt><dd>${escapeHtml(r['半年後最擔心'] || '—')}</dd>
+          <dt>補充說明</dt><dd>${escapeHtml(r['補充說明原文'] || '—')}</dd>
+        </dl>
+      </div>
+
+      <div class="section">
+        <h3>情報摘要</h3>
+        <div style="margin-bottom:10px;">${linksHtml}</div>
+        <div class="summary-box">${summary}</div>
+      </div>
+
+      <div class="section">
+        <h3>系統規則判讀</h3>
+        <p class="rule-note">⚠ 以下是根據客戶在表單上勾選的答案做的規則判斷，不是 AI 看過內容後的分析。</p>
+        <dl class="kv">
+          <dt>客戶狀態</dt><dd>${escapeHtml(r['系統判讀_客戶狀態'] || '—')}</dd>
+          <dt>規則摘要</dt><dd>${escapeHtml(r['系統判讀_規則摘要'] || '—')}</dd>
+        </dl>
+      </div>
+
+      <div class="section">
+        <h3>跟進紀錄</h3>
+        <div id="notesTimeline"><p class="muted">載入中…</p></div>
+        <div class="note-form">
+          <textarea id="noteInput" placeholder="這次跟進發生了什麼事？（例如：已電話聯繫，客戶考慮預算，約下週再聊）"></textarea>
+          <div class="note-form-row">
+            <select id="noteType">
+              <option value="現況觀察">現況觀察</option>
+              <option value="電話溝通">電話溝通</option>
+              <option value="會議記錄">會議記錄</option>
+              <option value="客戶回應">客戶回應</option>
+              <option value="其他">其他</option>
+            </select>
+            <button onclick="submitNote('${escapeAttr(r.ID)}')">新增紀錄</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('detailView').innerHTML = html;
+  document.getElementById('listView').style.display = 'none';
+  document.getElementById('detailView').style.display = 'block';
+  window.scrollTo(0, 0);
+  loadNotes(r.ID);
+}
+
+async function loadNotes(customerId) {
+  const container = document.getElementById('notesTimeline');
+  if (!container) return;
+  try {
+    const res = await fetch(CONFIG.backendUrl + '?action=listNotes&idToken=' + encodeURIComponent(idToken) +
+      '&customerId=' + encodeURIComponent(customerId));
+    const data = await res.json();
+    if (!data.ok) { container.innerHTML = '<p class="muted">載入跟進紀錄失敗。</p>'; return; }
+    const notes = data.notes || [];
+    if (!notes.length) { container.innerHTML = '<p class="muted">還沒有任何跟進紀錄。</p>'; return; }
+    container.innerHTML = notes.map(function (n) {
+      let timeStr = n['時間'] || '';
+      try { timeStr = new Date(timeStr).toLocaleString('zh-TW'); } catch (e) {}
+      const docLink = n['文件連結']
+        ? `<a class="note-doc-link" href="${escapeAttr(n['文件連結'])}" target="_blank" rel="noopener">📄 查看完整內容</a>`
+        : '';
+      return `<div class="note-item">
+        <div class="note-meta"><span>${escapeHtml(timeStr)}</span><span class="note-tag">${escapeHtml(n['類型'] || '')}</span></div>
+        <div class="note-summary">${escapeHtml(n['摘要'] || '')}</div>
+        ${docLink}
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '<p class="muted">載入跟進紀錄失敗，請確認網路連線。</p>';
+  }
+}
+
+async function submitNote(customerId) {
+  const input = document.getElementById('noteInput');
+  const typeSelect = document.getElementById('noteType');
+  const summary = input.value.trim();
+  if (!summary) { alert('請先輸入這次跟進的內容。'); return; }
+  try {
+    const res = await fetch(CONFIG.backendUrl + '?action=addNote&idToken=' + encodeURIComponent(idToken) +
+      '&customerId=' + encodeURIComponent(customerId) +
+      '&type=' + encodeURIComponent(typeSelect.value) +
+      '&summary=' + encodeURIComponent(summary));
+    const data = await res.json();
+    if (!data.ok) { alert('新增紀錄失敗，請重新整理再試一次。'); return; }
+    input.value = '';
+    loadNotes(customerId);
+  } catch (e) {
+    alert('新增紀錄失敗，請確認網路連線。');
+  }
+}
+
+function closeDetail() {
+  currentDetailId = null;
+  document.getElementById('detailView').style.display = 'none';
+  document.getElementById('detailView').innerHTML = '';
+  document.getElementById('listView').style.display = 'block';
+}
+
+async function deleteRow(id) {
+  if (!confirm('確定要刪除這筆名單嗎？此動作無法復原。')) return;
+  try {
+    const res = await fetch(CONFIG.backendUrl + '?action=deleteRow&idToken=' + encodeURIComponent(idToken) +
+      '&id=' + encodeURIComponent(id));
+    const data = await res.json();
+    if (!data.ok) { alert('刪除失敗，請重新整理再試一次。'); return; }
+    allRows = allRows.filter(function (r) { return r.ID !== id; });
+    closeDetail();
+    renderTable();
+  } catch (e) {
+    alert('刪除失敗，請確認網路連線後再試一次。');
+  }
+}
+
+function decodeJwtEmail(token) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return payload.email || '';
+  } catch (e) { return ''; }
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, function (m) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+  });
+}
+function escapeAttr(str) { return String(str ?? '').replace(/'/g, "\\'"); }
+</script>
+</body>
+</html>
