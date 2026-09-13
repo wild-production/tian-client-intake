@@ -403,7 +403,8 @@ function openDetail(id) {
         <h3>跟進紀錄</h3>
         <div id="notesTimeline"><p class="muted">載入中…</p></div>
         <div class="note-form">
-          <textarea id="noteInput" placeholder="這次跟進發生了什麼事？（例如：已電話聯繫，客戶考慮預算，約下週再聊）"></textarea>
+          <textarea id="noteInput" placeholder="這次跟進發生了什麼事？（簡短寫，例如：已電話聯繫，客戶考慮預算，約下週再聊）留空且下面有貼逐字稿的話，會自動用 AI 整理出摘要"></textarea>
+          <textarea id="noteTranscript" placeholder="（選填）貼完整逐字稿或會議記錄原文——會完整存進 Notion，不會被精簡"></textarea>
           <div class="note-form-row">
             <select id="noteType">
               <option value="現況觀察">現況觀察</option>
@@ -454,17 +455,28 @@ async function loadNotes(customerId) {
 
 async function submitNote(customerId) {
   const input = document.getElementById('noteInput');
+  const transcriptInput = document.getElementById('noteTranscript');
   const typeSelect = document.getElementById('noteType');
   const summary = input.value.trim();
-  if (!summary) { alert('請先輸入這次跟進的內容。'); return; }
+  const transcript = transcriptInput.value.trim();
+  if (!summary && !transcript) { alert('請至少輸入簡短摘要，或貼上逐字稿。'); return; }
   try {
+    // 注意：改用 POST，把內容放進 body，而不是塞進網址查詢字串——
+    // 早期版本用 GET + query string，貼一段完整逐字稿（幾百字以上）就會超出網址長度上限而失敗。
+    // Content-Type 故意用 text/plain，避免瀏覽器對 Apps Script 發出 CORS 預檢請求失敗
+    // （Apps Script 後端還是會照樣把它當 JSON 解析，見 Code.gs 的 doPost）
+    // 有貼逐字稿（content）時：完整原文存進 Notion；摘要留空的話後端會自動用 AI 整理一份
+    if (transcript) { alert('已送出，內容較長時 AI 整理摘要可能需要幾秒鐘，請稍後點「重新整理」查看結果。'); }
     const res = await fetch(CONFIG.backendUrl + '?action=addNote&idToken=' + encodeURIComponent(idToken) +
-      '&customerId=' + encodeURIComponent(customerId) +
-      '&type=' + encodeURIComponent(typeSelect.value) +
-      '&summary=' + encodeURIComponent(summary));
+      '&customerId=' + encodeURIComponent(customerId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: typeSelect.value, summary: summary, content: transcript }),
+    });
     const data = await res.json();
     if (!data.ok) { alert('新增紀錄失敗，請重新整理再試一次。'); return; }
     input.value = '';
+    transcriptInput.value = '';
     loadNotes(customerId);
   } catch (e) {
     alert('新增紀錄失敗，請確認網路連線。');
