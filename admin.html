@@ -5,15 +5,20 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>後台管理 — WILD</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
+  /* 套用「WILD 設計系統」色票／字體，邏輯與結構完全不動，只換視覺 */
   :root{
-    --paper:#efe8da; --ink:#221d17; --ink-soft:#5c5346; --line:#cabb9e;
-    --moss:#3c5c49; --sienna:#bd5a34; --white:#fbf9f3;
+    --paper:#F1F0E8; --ink:#0A0A08; --ink-soft:#5C5C52; --line:#DEDDCF;
+    --moss:#bb2c14; --sienna:#1c3b7b; --white:#FAFAF6;
+    --lime:#D7FF3D; --black:#0A0A08; --near-black:#141410;
   }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:"Noto Sans TC",system-ui,-apple-system,"Segoe UI",sans-serif;}
   header{padding:20px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;}
-  header h1{font-size:18px;margin:0;}
+  header h1{font-size:18px;margin:0;font-weight:900;letter-spacing:-0.02em;}
   .header-right{display:flex;align-items:center;gap:12px;}
   main{padding:24px;max-width:1400px;margin:0 auto;}
   #loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:16px;}
@@ -22,18 +27,18 @@
   #detailView{display:none;}
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
   select, button{font-family:inherit;font-size:14px;padding:8px 12px;border-radius:8px;border:1px solid var(--line);background:var(--white);color:var(--ink);}
-  button{cursor:pointer;background:var(--moss);color:var(--white);border:none;}
+  button{cursor:pointer;background:var(--lime);color:var(--ink);border:none;font-weight:700;border-radius:999px;}
   button:hover{opacity:.9;}
-  button.secondary{background:var(--white);color:var(--ink);border:1px solid var(--line);}
-  .count{color:var(--ink-soft);font-size:13px;}
+  button.secondary{background:var(--white);color:var(--ink);border:1px solid var(--line);border-radius:8px;font-weight:400;}
+  .count{color:var(--ink-soft);font-size:13px;font-family:"IBM Plex Mono",monospace;}
   table{width:100%;border-collapse:collapse;background:var(--white);border-radius:10px;overflow:hidden;font-size:13px;}
   th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;}
-  th{background:var(--paper);position:sticky;top:0;user-select:none;white-space:nowrap;cursor:pointer;}
-  th:hover{background:#e6dcc4;}
+  th{background:var(--paper);position:sticky;top:0;user-select:none;white-space:nowrap;cursor:pointer;font-family:"IBM Plex Mono",monospace;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-soft);}
+  th:hover{background:var(--line);}
   th.no-sort{cursor:default;}
   th.no-sort:hover{background:var(--paper);}
   th .arrow{color:var(--sienna);margin-left:2px;}
-  tr:hover{background:#f6f1e5;}
+  tr:hover{background:var(--paper);}
   .tag-select{min-width:110px;}
   .cell-wide{max-width:220px;white-space:pre-wrap;word-break:break-word;}
   .muted{color:var(--ink-soft);}
@@ -43,26 +48,26 @@
   .services-list{margin:0;padding:0;list-style:none;}
   .services-list li{padding:1px 0;}
   .link-btn{display:inline-block;margin:0 6px 6px 0;padding:6px 10px;border-radius:8px;background:var(--white);border:1px solid var(--line);font-size:12.5px;text-decoration:none;color:var(--ink);}
-  .link-btn:hover{background:#f6f1e5;}
+  .link-btn:hover{background:var(--paper);}
 
   /* 詳情頁（獨立版面，取代表格列表，不是彈出視窗） */
   .detail-card{background:var(--white);border-radius:14px;max-width:760px;margin:0 auto;padding:28px 32px;}
   .detail-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
-  .detail-card h2{margin:0 0 4px;font-size:22px;}
-  .danger-btn{background:#a6412b;}
+  .detail-card h2{margin:0 0 4px;font-size:22px;font-weight:900;letter-spacing:-0.02em;}
+  .danger-btn{background:var(--moss);color:var(--white);}
   .section{margin-top:18px;padding-top:14px;border-top:1px solid var(--line);}
 
   /* 跟進紀錄時間軸 */
   .note-item{background:var(--paper);border-radius:10px;padding:10px 12px;margin-bottom:8px;}
-  .note-item .note-meta{font-size:12px;color:var(--ink-soft);display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-  .note-tag{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--white);border:1px solid var(--line);font-size:11.5px;}
+  .note-item .note-meta{font-size:12px;color:var(--ink-soft);display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:"IBM Plex Mono",monospace;}
+  .note-tag{display:inline-block;padding:1px 8px;border-radius:999px;background:var(--lime);color:var(--ink);border:none;font-size:11.5px;font-family:"IBM Plex Mono",monospace;}
   .note-summary{margin-top:4px;font-size:13.5px;white-space:pre-wrap;}
   .note-doc-link{font-size:12.5px;margin-top:4px;display:inline-block;}
   .note-form{display:flex;flex-direction:column;gap:8px;margin-top:12px;}
   .note-form textarea{font-family:inherit;font-size:13.5px;padding:8px;border-radius:8px;border:1px solid var(--line);resize:vertical;min-height:60px;}
   .note-form-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
   .section:first-of-type{margin-top:14px;}
-  .section h3{margin:0 0 8px;font-size:13px;color:var(--sienna);letter-spacing:.02em;}
+  .section h3{margin:0 0 8px;font-size:12px;color:var(--sienna);letter-spacing:.06em;text-transform:uppercase;font-family:"IBM Plex Mono",monospace;}
   .kv{display:grid;grid-template-columns:110px 1fr;gap:6px 10px;font-size:13.5px;}
   .kv dt{color:var(--ink-soft);}
   .kv dd{margin:0;}
@@ -84,7 +89,7 @@
   <div id="loginScreen">
     <p>請用授權的 Google 帳號登入</p>
     <div id="googleBtn"></div>
-    <p id="loginError" style="color:#a6412b;display:none;">登入驗證失敗，請確認帳號是否正確，或聯繫管理者。</p>
+    <p id="loginError" style="color:var(--moss);display:none;">登入驗證失敗，請確認帳號是否正確，或聯繫管理者。</p>
   </div>
 
   <div id="adminScreen">
@@ -139,7 +144,7 @@ let sortState = { col: null, dir: 1 };
 window.onload = function () {
   if (!CONFIG.googleClientId) {
     document.getElementById('loginScreen').innerHTML =
-      '<p style="color:#a6412b;max-width:420px;text-align:center;">尚未設定 googleClientId，後台還不能用。請照「後台建置說明.md」完成設定。</p>';
+      '<p style="color:var(--moss);max-width:420px;text-align:center;">尚未設定 googleClientId，後台還不能用。請照「後台建置說明.md」完成設定。</p>';
     return;
   }
   google.accounts.id.initialize({
@@ -413,7 +418,7 @@ function openDetail(id) {
               <option value="客戶回應">客戶回應</option>
               <option value="其他">其他</option>
             </select>
-            <button onclick="submitNote('${escapeAttr(r.ID)}')">新增紀錄</button>
+            <button id="noteSubmitBtn" onclick="submitNote('${escapeAttr(r.ID)}')">新增紀錄</button>
           </div>
         </div>
       </div>
@@ -457,16 +462,26 @@ async function submitNote(customerId) {
   const input = document.getElementById('noteInput');
   const transcriptInput = document.getElementById('noteTranscript');
   const typeSelect = document.getElementById('noteType');
+  const btn = document.getElementById('noteSubmitBtn');
   const summary = input.value.trim();
   const transcript = transcriptInput.value.trim();
   if (!summary && !transcript) { alert('請至少輸入簡短摘要，或貼上逐字稿。'); return; }
+
+  // 有貼逐字稿時，後端要做的事變多（AI 整理完整版 + AI 生成摘要 + 寫 Notion + 寫表單），
+  // 實測下來全部跑完可能要 10~20 幾秒，比瀏覽器願意乖乖等待的時間還長。
+  // 過去發生過「瀏覽器等到逾時、顯示失敗，但其實後端已經整個跑完、資料也寫進去了」的狀況——
+  // 使用者看到失敗以為沒送出，就手動重按，結果變成同一份逐字稿建立了兩筆重複紀錄。
+  // 所以這裡改成：送出後鎖住按鈕避免重複點擊，逾時或連線錯誤時不再武斷顯示「失敗」，
+  // 而是提示可能還在處理中，並且自動重新整理時間軸讓使用者自己確認結果有沒有出現。
+  const hasTranscript = !!transcript;
+  if (btn) { btn.disabled = true; btn.textContent = hasTranscript ? '處理中…（可能要 10~20 秒）' : '送出中…'; }
+
   try {
     // 注意：改用 POST，把內容放進 body，而不是塞進網址查詢字串——
     // 早期版本用 GET + query string，貼一段完整逐字稿（幾百字以上）就會超出網址長度上限而失敗。
     // Content-Type 故意用 text/plain，避免瀏覽器對 Apps Script 發出 CORS 預檢請求失敗
     // （Apps Script 後端還是會照樣把它當 JSON 解析，見 Code.gs 的 doPost）
-    // 有貼逐字稿（content）時：完整原文存進 Notion；摘要留空的話後端會自動用 AI 整理一份
-    if (transcript) { alert('已送出，內容較長時 AI 整理摘要可能需要幾秒鐘，請稍後點「重新整理」查看結果。'); }
+    // 有貼逐字稿（content）時：AI 整理過的完整版存進 Notion；摘要留空的話後端會自動用 AI 另外整理一份精簡摘要
     const res = await fetch(CONFIG.backendUrl + '?action=addNote&idToken=' + encodeURIComponent(idToken) +
       '&customerId=' + encodeURIComponent(customerId), {
       method: 'POST',
@@ -474,12 +489,25 @@ async function submitNote(customerId) {
       body: JSON.stringify({ type: typeSelect.value, summary: summary, content: transcript }),
     });
     const data = await res.json();
-    if (!data.ok) { alert('新增紀錄失敗，請重新整理再試一次。'); return; }
+    if (!data.ok) {
+      alert('新增紀錄失敗：' + (data.error || '未知錯誤，請重新整理再試一次。'));
+      return;
+    }
     input.value = '';
     transcriptInput.value = '';
     loadNotes(customerId);
   } catch (e) {
-    alert('新增紀錄失敗，請確認網路連線。');
+    if (hasTranscript) {
+      // 不武斷判定失敗：逐字稿情境下，瀏覽器逾時不代表後端沒處理完。
+      // 先不清空輸入框（避免使用者以為真的沒送出而手動重貼一次造成重複），
+      // 稍後自動重新整理時間軸，看到新紀錄出現的話代表其實有成功，使用者自己再手動清空重貼欄位即可。
+      alert('目前沒有等到回應，但逐字稿較長時這是常見狀況，後端很可能還在處理、甚至已經處理完成。\n請等待幾秒，畫面會自動重新整理時間軸——如果看到新的一筆紀錄出現，代表已經成功，不需要重新送出；如果稍後還是沒有出現，才需要再試一次。');
+      setTimeout(function () { loadNotes(customerId); }, 15000);
+    } else {
+      alert('新增紀錄失敗，請確認網路連線。');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '新增紀錄'; }
   }
 }
 
