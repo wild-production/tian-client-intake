@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>品牌合作前諮詢 — WILD</title>
+<title>品牌合作前諮詢 — 提點行銷</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=IBM+Plex+Mono:wght@500;600&family=Anton&display=swap" rel="stylesheet">
@@ -515,6 +517,7 @@ main{flex:1; padding:28px 20px 140px;}
 .btn:active{transform:scale(.98);}
 .btn.secondary{background:transparent; color:var(--ink); border-color:var(--line);}
 .btn.btn-red{background:var(--moss); border-color:var(--moss); color:var(--white);}
+.btn.btn-lime-outline{background:var(--black); border-color:var(--lime); color:var(--lime);}
 .btn:disabled{opacity:.4; cursor:not-allowed;}
 .btn.grow-0{flex:none; min-width:110px;}
 
@@ -582,7 +585,7 @@ main{flex:1; padding:28px 20px 140px;}
 .booking-policy .policy-rule b{color:var(--moss);}
 
 .contact-reveal{
-  background:var(--paper-2); border:1px dashed var(--line); border-radius:10px;
+  background:var(--paper); border:1px dashed var(--line); border-radius:10px;
   padding:14px 16px; margin-bottom:22px; font-size:14px;
 }
 .contact-reveal b{color:var(--moss);}
@@ -1739,9 +1742,9 @@ function updateContactReveal(){
   const pref = state.answers.contactPref;
   const c = CONFIG.contact || {};
   const map = {
-    'Instagram DM': c.igUrl ? `<p>收到需求後我會直接從 Instagram 回覆你，也可以先追蹤起來：</p><a href="${escapeHtml(c.igUrl)}" target="_blank" rel="noopener" class="btn btn-red" style="display:block;text-decoration:none;margin-top:8px;">前往 Instagram</a>` : '',
-    'LINE': c.lineUrl ? `<p>加入後就可以直接對話：</p><a href="${escapeHtml(c.lineUrl)}" target="_blank" rel="noopener" class="btn btn-red" style="display:block;text-decoration:none;margin-top:8px;">加入 LINE 好友</a>` : '',
-    'Email': c.email ? `<p>回覆也會從這個信箱寄出：</p><a href="mailto:${escapeHtml(c.email)}" class="btn btn-red" style="display:block;text-decoration:none;margin-top:8px;">寄信給我</a>` : '',
+    'Instagram DM': c.igUrl ? `<p>收到需求後我會直接從 Instagram 回覆你，也可以先追蹤起來：</p><a href="${escapeHtml(c.igUrl)}" target="_blank" rel="noopener" class="btn btn-lime-outline" style="display:block;text-decoration:none;margin-top:8px;">前往 Instagram</a>` : '',
+    'LINE': c.lineUrl ? `<p>加入後就可以直接對話：</p><a href="${escapeHtml(c.lineUrl)}" target="_blank" rel="noopener" class="btn btn-lime-outline" style="display:block;text-decoration:none;margin-top:8px;">加入 LINE 好友</a>` : '',
+    'Email': c.email ? `<p>回覆也會從這個信箱寄出：</p><a href="mailto:${escapeHtml(c.email)}" class="btn btn-lime-outline" style="display:block;text-decoration:none;margin-top:8px;">寄信給我</a>` : '',
   };
   const text = pref ? map[pref] : '';
   if(text){ wrap.style.display = 'block'; wrap.innerHTML = text; }
