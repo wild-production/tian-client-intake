@@ -592,6 +592,40 @@ main{flex:1; padding:28px 20px 140px;}
 .contact-reveal a{color:var(--moss); font-weight:600; text-decoration:underline; word-break:break-all;}
 .contact-reveal a:hover{color:var(--moss-deep);}
 
+.bank-transfer-card{
+  background:var(--paper); border:1px solid var(--line); border-radius:10px;
+  padding:16px; margin-top:4px;
+}
+.bank-row{
+  display:flex; align-items:center; gap:10px; padding:6px 0;
+  border-bottom:1px solid var(--line-soft); font-size:14px;
+}
+.bank-row:last-of-type{border-bottom:none;}
+.bank-row .bank-label{
+  flex-shrink:0; width:52px; font-size:12px; color:var(--ink-soft);
+  font-family:"IBM Plex Mono",monospace;
+}
+.bank-row .bank-account{
+  font-family:"IBM Plex Mono",monospace; font-weight:700; letter-spacing:.02em;
+  flex:1; word-break:break-all;
+}
+.bank-copy-btn{
+  flex-shrink:0; border:1px solid var(--moss); background:var(--moss); color:var(--white);
+  font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:999px; cursor:pointer;
+  transition:opacity .15s;
+}
+.bank-copy-btn:active{opacity:.75;}
+.bank-copy-btn.copied{background:var(--black); border-color:var(--lime); color:var(--lime);}
+.bank-warning{
+  width:100%; box-sizing:border-box;
+  margin-top:12px; padding:14px 16px; background:var(--white); border:1px dashed var(--moss);
+  border-radius:8px; font-size:12.5px; color:var(--ink); line-height:1.6;
+}
+.bank-warning ul{margin:0; padding-left:18px;}
+.bank-warning li{margin:0 0 6px;}
+.bank-warning li:last-child{margin-bottom:0;}
+.bank-warning .bank-highlight{color:var(--moss); font-weight:700;}
+
 @media (min-width:640px){
   .stat-row{gap:28px;}
 }
@@ -873,6 +907,19 @@ main{flex:1; padding:28px 20px 140px;}
           <p style="font-size:13px; color:var(--ink-soft); font-style:italic;" id="depositNote"></p>
           <a href="#" id="paymentBtn" class="btn" style="display:block; text-decoration:none; margin-top:16px;">前往付款</a>
         </div>
+        <div class="report" id="bankTransferBlock" style="display:none;">
+          <h4 style="margin-top:0;">匯款資訊</h4>
+          <div class="bank-transfer-card">
+            <div class="bank-row"><span class="bank-label">銀行</span><span id="bankName"></span></div>
+            <div class="bank-row">
+              <span class="bank-label">帳號</span>
+              <span id="bankAccount" class="bank-account"></span>
+              <button type="button" id="bankCopyBtn" class="bank-copy-btn">複製帳號</button>
+            </div>
+            <div class="bank-row"><span class="bank-label">戶名</span><span id="bankHolder"></span></div>
+          </div>
+          <div class="bank-warning" id="bankWarning"></div>
+        </div>
         <div class="report" id="communityBlock" style="display:none;">
           <h4 style="margin-top:0;">加入社群</h4>
           <p style="font-size:14.5px; color:var(--ink-soft);">合作期間的更新、小活動都會先在這裡發布。</p>
@@ -1104,8 +1151,21 @@ const CONFIG = {
     depositPerks: [
       "如果之後時段有衝突需要調整，已付訂金的客人會優先協助安排",
     ],
-    depositNote: "沒有先付訂金也沒關係，一樣可以進行線上諮詢，只是時間會比較短。",
-    paymentUrl: "",      // 之後貼金流平台的收款連結（Stripe／綠界／藍新／LINE Pay）
+    depositNote: "",
+    paymentUrl: "",      // 之後貼金流平台的收款連結（Stripe／綠界／藍新／LINE Pay），設定後會改用「前往付款」按鈕
+    // 目前先用銀行轉帳收款：填妥後第五頁會顯示帳號卡片（可一鍵複製）與對帳提醒
+    bankTransfer: {
+      bankCode: "013",
+      bankName: "國泰銀行",
+      account: "042035014734",
+      holder: "肆野形象策劃有限公司",
+      // 條列顯示；可用 <span class="bank-highlight">...</span> 標出要特別提醒的重點（會顯示為粗體紅字）
+      warningPoints: [
+        '請於轉帳備註<span class="bank-highlight">註明您的 Instagram 帳號</span>，以利核對款項',
+        '若七日內仍無法完成對帳，視為款項資訊有誤，將全額退還已收款項',
+        '退款所生之匯款手續費由付款人自行負擔',
+      ],
+    },
     communityUrl: "https://line.me/R/ti/p/@893qyjui",
     // ---- 預約注意事項（選填）：no-show 規則是你自己人工記錄、手動執行的，
     // 工具沒有帳號系統，無法自動追蹤客人爽約次數 ----
@@ -1804,8 +1864,34 @@ function renderClosing(){
   document.getElementById('depositNote').textContent = cfg.depositNote || '';
 
   const payBtn = document.getElementById('paymentBtn');
-  if(cfg.paymentUrl){ payBtn.href = cfg.paymentUrl; payBtn.textContent = '前往付款'; payBtn.target = '_blank'; }
-  else { payBtn.href = '#'; payBtn.textContent = '付款方式準備中'; payBtn.onclick = (e)=>e.preventDefault(); }
+  if(cfg.paymentUrl){
+    payBtn.style.display = 'block'; payBtn.href = cfg.paymentUrl; payBtn.textContent = '前往付款'; payBtn.target = '_blank'; payBtn.onclick = null;
+  } else {
+    // 還沒串接金流平台時，先隱藏「前往付款」按鈕，改用下面的銀行轉帳卡片
+    payBtn.style.display = 'none';
+  }
+
+  const bt = cfg.bankTransfer;
+  const btBlock = document.getElementById('bankTransferBlock');
+  if(bt && bt.account){
+    btBlock.style.display = 'block';
+    document.getElementById('bankName').textContent = (bt.bankCode ? `(${bt.bankCode}) ` : '') + (bt.bankName || '');
+    document.getElementById('bankAccount').textContent = bt.account;
+    document.getElementById('bankHolder').textContent = bt.holder || '';
+    document.getElementById('bankWarning').innerHTML = (bt.warningPoints && bt.warningPoints.length) ? ('<ul>' + bt.warningPoints.map(p=>`<li>${p}</li>`).join('') + '</ul>') : '';
+    const copyBtn = document.getElementById('bankCopyBtn');
+    copyBtn.classList.remove('copied');
+    copyBtn.textContent = '複製帳號';
+    copyBtn.onclick = ()=>{
+      copyTextToClipboard(bt.account).then(()=>{
+        copyBtn.classList.add('copied');
+        copyBtn.textContent = '已複製 ✓';
+        setTimeout(()=>{ copyBtn.classList.remove('copied'); copyBtn.textContent = '複製帳號'; }, 1800);
+      });
+    };
+  } else {
+    btBlock.style.display = 'none';
+  }
 
   const communityBlock = document.getElementById('communityBlock');
   if(cfg.communityUrl){
@@ -1826,6 +1912,27 @@ document.getElementById('goToClosingBtn').addEventListener('click', ()=>{
 
 function escapeHtml(str){
   return String(str??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+// 一鍵複製：優先用 Clipboard API，不支援（例如非 HTTPS 環境）時退回傳統 execCommand 作法
+function copyTextToClipboard(text){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).catch(()=>fallbackCopy(text));
+  }
+  return fallbackCopy(text);
+}
+function fallbackCopy(text){
+  return new Promise((resolve)=>{
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    try{ document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta);
+    resolve();
+  });
 }
 
 // ---------- Dev banner：尚未設定收件服務時提醒（縮成角落小標籤，點一下展開／收合，避免擋住客戶看到的畫面）----------
